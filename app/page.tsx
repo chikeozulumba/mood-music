@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 interface Playlist {
   id: string;
@@ -16,7 +17,6 @@ interface Playlist {
 export default function Home() {
   const [mood, setMood] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [vibeSummary, setVibeSummary] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -30,10 +30,10 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!mood.trim() || loading) return;
+    const trimmed = mood.trim();
+    if (!trimmed || loading) return;
 
     setLoading(true);
-    setError(null);
     setPlaylists([]);
     setVibeSummary(null);
 
@@ -41,19 +41,44 @@ export default function Home() {
       const res = await fetch("/api/mood-playlists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood }),
+        body: JSON.stringify({ mood: trimmed }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Something went wrong.");
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          "The server sent back an unexpected response. Please try again.",
+        );
       }
 
-      setVibeSummary(data.vibeSummary);
+      if (!res.ok) {
+        throw new Error(
+          data?.error || `Request failed with status ${res.status}.`,
+        );
+      }
+
+      if (!Array.isArray(data.playlists)) {
+        throw new Error("The server response was missing playlist data.");
+      }
+
+      setVibeSummary(data.vibeSummary ?? null);
       setPlaylists(data.playlists);
+
+      if (data.playlists.length === 0) {
+        toast.warning("No playlists matched that mood.", {
+          description: "Try describing it a different way.",
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const message =
+        err instanceof TypeError
+          ? "Network error — check your connection and try again."
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -66,7 +91,7 @@ export default function Home() {
     }
   }
 
-  const hasResults = playlists.length > 0 || loading || error || vibeSummary;
+  const hasResults = playlists.length > 0 || loading || vibeSummary;
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 sm:px-6">
@@ -80,8 +105,7 @@ export default function Home() {
             Mood Music
           </h1>
           <p className="text-ink-500 text-sm sm:text-base">
-            Describe how you're feeling — Claude turns it into search terms,
-            Spotify finds the playlists.
+            Describe how you're feeling — Spotify finds the playlists.
           </p>
         </div>
 
@@ -142,12 +166,6 @@ export default function Home() {
             </div>
           </div>
         </form>
-
-        {error && (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
 
         {vibeSummary && (
           <p className="mt-6 text-center text-ink-500 italic text-sm">
