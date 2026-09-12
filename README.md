@@ -133,3 +133,13 @@ your production Worker URL once you know it.
 - **Scope**: Spotify login only requests `user-read-email user-read-private`
   (identity only) — this app never reads or modifies a user's library or
   playlists, only searches Spotify's public catalog.
+- **PWA**: `apps/web` is installable (Add to Home Screen / desktop install
+  prompt) via `vite-plugin-pwa` — manifest + a Workbox-generated service
+  worker precache the app shell for offline loading. The icon is an
+  original design (not Spotify's logo, which their brand guidelines
+  reserve for things like a "Listen on Spotify" badge, not a third-party
+  app's own icon) — source at `apps/web/public/pwa/icon-master.svg`. The
+  service worker only runs in production builds (`pnpm build`), not
+  `vite dev`, so it won't fight with Vite's HMR locally; `/api/*` is
+  explicitly excluded from the SW's navigation fallback and was verified
+  to pass through to the network untouched.

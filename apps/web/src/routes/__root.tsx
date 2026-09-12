@@ -12,8 +12,8 @@ function RootComponent() {
   return (
     <NuqsAdapter>
       <AuthProvider>
-        <div className="min-h-screen bg-cream-50 text-ink-900 font-sans antialiased">
-          <header className="flex items-center justify-between px-4 py-4 sm:px-6">
+        <div className="safe-bottom min-h-screen bg-cream-50 text-ink-900 font-sans antialiased">
+          <header className="safe-top flex items-center justify-between px-4 pb-4 sm:px-6">
             <Link to="/" className="font-serif text-lg text-ink-900">
               Mood Music
             </Link>

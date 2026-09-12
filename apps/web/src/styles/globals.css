@@ -21,3 +21,13 @@
 body {
   margin: 0;
 }
+
+/* Installed-app feel on notched devices (viewport-fit=cover lets content
+   draw under the notch/home-indicator; these keep it from being obscured). */
+.safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
