@@ -1,4 +1,4 @@
-name = "mood-music-api"
+name = "mood-music"
 main = "src/index.ts"
 compatibility_date = "2026-09-12"
 
