@@ -18,7 +18,14 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+// Exposed on its own (not just baked into moodCacheKey) so callers can also
+// use it as a per-user "have I already recorded this exact mood search"
+// dedupe key — see UserState.hasRecentHistoryForMood.
+export async function hashMoodText(mood: string): Promise<string> {
+  return sha256Hex(normalizeMoodText(mood));
+}
+
 export async function moodCacheKey(mood: string): Promise<string> {
-  const hash = await sha256Hex(normalizeMoodText(mood));
+  const hash = await hashMoodText(mood);
   return `${CACHE_KEY_PREFIX}${hash}`;
 }

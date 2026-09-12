@@ -71,14 +71,32 @@ export class UserState extends DurableObject<Env> {
     return updated.accessToken;
   }
 
+  // Guards against persisting a duplicate history row for a mood search
+  // that was just recorded — e.g. a double-click, two tabs racing on the
+  // same request, or a result served from the shared mood-results cache
+  // (which means this exact search was already fresh/persisted recently,
+  // by this user or someone else, within `ttlMs`). The marker shares the
+  // mood-results cache's TTL so both go stale together: after that window,
+  // Claude/Spotify are re-queried for genuinely fresh data and a new
+  // history entry is fair game again.
+  async hasRecentHistoryForMood(moodHash: string): Promise<boolean> {
+    const expiresAt = await this.ctx.storage.get<number>(
+      `history-seen:${moodHash}`
+    );
+    return expiresAt !== undefined && expiresAt > Date.now();
+  }
+
   async addHistoryEntry(
-    entry: Omit<HistoryEntry, "id" | "createdAt">
+    entry: Omit<HistoryEntry, "id" | "createdAt">,
+    moodHash: string,
+    ttlMs: number
   ): Promise<void> {
     const createdAt = Date.now();
     const id = crypto.randomUUID();
     // Zero-padded timestamp so lexicographic key order == chronological order.
     const key = `history:${String(createdAt).padStart(15, "0")}:${id}`;
     await this.ctx.storage.put(key, { ...entry, id, createdAt });
+    await this.ctx.storage.put(`history-seen:${moodHash}`, createdAt + ttlMs);
   }
 
   async listHistory(limit = 20): Promise<HistoryEntry[]> {

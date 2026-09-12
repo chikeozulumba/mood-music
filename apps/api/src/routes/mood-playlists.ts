@@ -3,7 +3,7 @@ import type { Env } from "../env";
 import { interpretMood } from "../lib/anthropic";
 import { findPlaylistsForQueries, type SpotifyPlaylistResult } from "../lib/spotify";
 import { getCurrentUserStub } from "../lib/session";
-import { moodCacheKey, MOOD_CACHE_TTL_SECONDS } from "../lib/cache";
+import { hashMoodText, moodCacheKey, MOOD_CACHE_TTL_SECONDS } from "../lib/cache";
 
 const moodPlaylists = new Hono<{ Bindings: Env }>();
 
@@ -24,13 +24,16 @@ moodPlaylists.post("/", async (c) => {
 
     // A hash of the (normalized) mood text keys a cache entry so repeat
     // searches for the same mood never re-hit Claude or Spotify.
-    const cacheKey = await moodCacheKey(mood);
+    const moodHash = await hashMoodText(mood);
+    const cacheKey = `cache:mood:${moodHash}`;
     const cachedRaw = await c.env.MOOD_MUSIC_SESSIONS.get(cacheKey);
 
     let result: MoodPlaylistsResult;
+    let servedFromCache = false;
 
     if (cachedRaw) {
       result = JSON.parse(cachedRaw) as MoodPlaylistsResult;
+      servedFromCache = true;
     } else {
       // 1. Claude: free text -> vibe summary + concrete Spotify search queries
       const { vibeSummary, searchQueries } = await interpretMood(
@@ -53,10 +56,20 @@ moodPlaylists.post("/", async (c) => {
       });
     }
 
-    // 3. If logged in, persist this search to the user's history.
+    // 3. If logged in, persist this search to the user's history — but only
+    // when it's a genuinely fresh result (not served from cache) AND this
+    // user hasn't already recorded the same mood search recently, so a
+    // cache hit or a double-submit never creates a duplicate history row.
     const stub = await getCurrentUserStub(c);
-    if (stub) {
-      await stub.addHistoryEntry({ moodText: mood, ...result });
+    if (stub && !servedFromCache) {
+      const alreadyRecorded = await stub.hasRecentHistoryForMood(moodHash);
+      if (!alreadyRecorded) {
+        await stub.addHistoryEntry(
+          { moodText: mood, ...result },
+          moodHash,
+          MOOD_CACHE_TTL_SECONDS * 1000
+        );
+      }
     }
 
     return c.json(result);

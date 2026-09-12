@@ -12,3 +12,26 @@ export function estimateDuration(trackCount: number): string {
   if (minutes === 0) return `~${hours} hr`;
   return `~${hours} hr ${minutes} min`;
 }
+
+export function formatDateHeading(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function formatTimeOfDay(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// A catalogue's entries are already newest-first, so the first/last are the
+// most recent/oldest — collapse to a single date when they're the same day.
+export function formatDateRange(entries: { createdAt: number }[]): string {
+  const newest = formatDateHeading(entries[0].createdAt);
+  const oldest = formatDateHeading(entries[entries.length - 1].createdAt);
+  return newest === oldest ? newest : `${oldest} – ${newest}`;
+}
