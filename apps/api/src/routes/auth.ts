@@ -7,15 +7,33 @@ import {
   SESSION_TTL_SECONDS,
 } from "../lib/session";
 import { exchangeCodeForTokens, fetchSpotifyProfile } from "../lib/spotify";
+import { resolveRedirectUri } from "../lib/redirect-uri";
 
 const OAUTH_STATE_COOKIE = "spotify_oauth_state";
+const REDIRECT_URI_COOKIE = "spotify_redirect_uri";
 
 const auth = new Hono<{ Bindings: Env }>();
 
 auth.get("/login", (c) => {
   const state = crypto.randomUUID();
+  const redirectUri = resolveRedirectUri(
+    c.req.header("referer"),
+    c.env.SPOTIFY_REDIRECT_URI
+  );
 
   setCookie(c, OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    maxAge: 600,
+    path: "/",
+  });
+
+  // Remembered so /callback's token exchange sends the *exact* same
+  // redirect_uri Spotify saw on /authorize — required for the exchange to
+  // succeed, and not re-derivable there since the referer on the callback
+  // request is Spotify's own domain, not this app's.
+  setCookie(c, REDIRECT_URI_COOKIE, redirectUri, {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
@@ -34,7 +52,7 @@ auth.get("/login", (c) => {
   const url = new URL("https://accounts.spotify.com/authorize");
   url.searchParams.set("client_id", c.env.SPOTIFY_CLIENT_ID);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", c.env.SPOTIFY_REDIRECT_URI);
+  url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("scope", "user-read-email user-read-private");
   url.searchParams.set("state", state);
 
@@ -49,6 +67,9 @@ auth.get("/callback", async (c) => {
   const expectedState = getCookie(c, OAUTH_STATE_COOKIE);
   deleteCookie(c, OAUTH_STATE_COOKIE, { path: "/" });
 
+  const redirectUri = getCookie(c, REDIRECT_URI_COOKIE) ?? c.env.SPOTIFY_REDIRECT_URI;
+  deleteCookie(c, REDIRECT_URI_COOKIE, { path: "/" });
+
   if (error) {
     return c.text(`Spotify login was cancelled or failed: ${error}`, 400);
   }
@@ -62,7 +83,7 @@ auth.get("/callback", async (c) => {
       code,
       c.env.SPOTIFY_CLIENT_ID,
       c.env.SPOTIFY_CLIENT_SECRET,
-      c.env.SPOTIFY_REDIRECT_URI,
+      redirectUri,
     );
 
     const profile = await fetchSpotifyProfile(tokens.access_token);

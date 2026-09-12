@@ -25,8 +25,9 @@ id = "fef199fbdb07444e9c1ac7a9c6d1607b"
 preview_id = "1849c801d0914b28b3edefe4b48777d1"
 
 [vars]
-# Non-secret. Update to the deployed Worker URL in production.
-SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8787/api/auth/callback"
+# Non-secret. This is the production value (used by `wrangler deploy`).
+# Local dev overrides it back to localhost via apps/api/.env.local.
+SPOTIFY_REDIRECT_URI = "https://mood-music-api.chike-ozulumba.workers.dev/api/auth/callback"
 
 # Secrets — never stored in this file.
 # Local dev: create apps/api/.dev.vars (gitignored) from .dev.vars.example.

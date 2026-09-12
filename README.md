@@ -67,10 +67,26 @@ You already have a Spotify app from the original version of this project
 (Client ID + Secret in the repo root's `.env.local` — that file is unused by
 the new API but was left in place). In the
 [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add
-these **Redirect URIs** to that app's settings:
+these **Redirect URIs** to that app's settings — one per origin the app is
+actually reachable from:
 
-- `http://127.0.0.1:8787/api/auth/callback` (local dev)
-- `https://<your-worker>.workers.dev/api/auth/callback` (production, once deployed)
+- `http://127.0.0.1:<any port>/api/auth/callback` (local dev — register the
+  exact port(s) you use, e.g. `:8787` and/or Vite's `:5173`)
+- `https://moodmusic.chikeozulumba.com/api/auth/callback`
+- `https://moodmusic.site/api/auth/callback`
+- `https://<your-worker>.workers.dev/api/auth/callback` (fallback default —
+  see below; keep this registered too)
+
+`SPOTIFY_REDIRECT_URI` (`wrangler.toml` / `apps/api/.env.local`) is only the
+**fallback**. `apps/api/src/lib/redirect-uri.ts` picks the actual
+redirect_uri per-request from the incoming `Referer` header, but only when
+its origin is on the allowlist there (currently the two domains above, plus
+`http://127.0.0.1:<any port>`) — any other Referer (or none) falls back to
+the static env var. Adding another domain the app is served from means
+updating that allowlist *and* registering the new URI in Spotify's
+dashboard. The two custom domains also need to actually be routed to this
+Worker via Cloudflare (custom domain / route configuration) — this repo
+doesn't do that for you.
 
 ### 2. Cloudflare
 
