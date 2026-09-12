@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { fetchMe, logout, type UserProfile } from "@/lib/api-client";
 
 export function AuthStatus() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +26,28 @@ export function AuthStatus() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
   async function handleLogout() {
+    setMenuOpen(false);
     setLoading(true);
     await logout();
     setProfile(null);
@@ -51,22 +74,43 @@ export function AuthStatus() {
       <Link to="/history" className="text-ink-700 hover:text-ink-900">
         History
       </Link>
-      {profile.avatarUrl ? (
-        <img
-          src={profile.avatarUrl}
-          alt=""
-          className="h-8 w-8 rounded-full object-cover"
-        />
-      ) : (
-        <div className="h-8 w-8 rounded-full bg-cream-200" />
-      )}
-      <span className="text-ink-700">{profile.displayName ?? "You"}</span>
-      <button
-        onClick={handleLogout}
-        className="text-ink-500 hover:text-ink-900"
-      >
-        Log out
-      </button>
+
+      <div ref={menuRef} className="relative">
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-600/40"
+        >
+          {profile.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt={profile.displayName ?? "Account"}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-cream-200" />
+          )}
+        </button>
+
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-xl border border-ink-900/10 bg-white shadow-card"
+          >
+            <div className="truncate border-b border-ink-900/5 px-3 py-2 text-ink-700">
+              {profile.displayName ?? "You"}
+            </div>
+            <button
+              role="menuitem"
+              onClick={handleLogout}
+              className="block w-full px-3 py-2 text-left text-ink-500 hover:bg-cream-100 hover:text-ink-900"
+            >
+              Log out
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

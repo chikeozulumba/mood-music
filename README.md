@@ -38,7 +38,7 @@ no CORS, and cookie-based sessions just work. In local dev, Vite proxies
 
 ### Data storage
 
-- **Workers KV** (`SESSIONS` namespace): maps an opaque session-id cookie to
+- **Workers KV** (`MOOD_MUSIC_SESSIONS` namespace): maps an opaque session-id cookie to
   a Spotify user id. Nothing else lives here.
 - **Durable Objects** (one `UserState` instance per Spotify user, addressed by
   their Spotify user id): stores that user's Spotify OAuth tokens (with
@@ -67,8 +67,8 @@ these **Redirect URIs** to that app's settings:
 ```bash
 pnpm dlx wrangler login
 cd apps/api
-wrangler kv namespace create SESSIONS
-wrangler kv namespace create SESSIONS --preview
+wrangler kv namespace create MOOD_MUSIC_SESSIONS
+wrangler kv namespace create MOOD_MUSIC_SESSIONS --preview
 ```
 
 Paste the two returned namespace ids into `apps/api/wrangler.toml`'s

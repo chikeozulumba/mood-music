@@ -1,7 +1,11 @@
 import { Hono } from "hono";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Env } from "../env";
-import { getCurrentUserStub, SESSION_COOKIE, SESSION_TTL_SECONDS } from "../lib/session";
+import {
+  getCurrentUserStub,
+  SESSION_COOKIE,
+  SESSION_TTL_SECONDS,
+} from "../lib/session";
 import { exchangeCodeForTokens, fetchSpotifyProfile } from "../lib/spotify";
 
 const OAUTH_STATE_COOKIE = "spotify_oauth_state";
@@ -12,6 +16,14 @@ auth.get("/login", (c) => {
   const state = crypto.randomUUID();
 
   setCookie(c, OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    maxAge: 600,
+    path: "/",
+  });
+
+  setCookie(c, "referer", c.req.header("referer") ?? "/", {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
@@ -50,7 +62,7 @@ auth.get("/callback", async (c) => {
       code,
       c.env.SPOTIFY_CLIENT_ID,
       c.env.SPOTIFY_CLIENT_SECRET,
-      c.env.SPOTIFY_REDIRECT_URI
+      c.env.SPOTIFY_REDIRECT_URI,
     );
 
     const profile = await fetchSpotifyProfile(tokens.access_token);
@@ -70,7 +82,7 @@ auth.get("/callback", async (c) => {
     });
 
     const sessionId = crypto.randomUUID();
-    await c.env.SESSIONS.put(`session:${sessionId}`, profile.id, {
+    await c.env.MOOD_MUSIC_SESSIONS.put(`session:${sessionId}`, profile.id, {
       expirationTtl: SESSION_TTL_SECONDS,
     });
 
@@ -82,7 +94,9 @@ auth.get("/callback", async (c) => {
       path: "/",
     });
 
-    return c.redirect("/");
+    const referer = getCookie(c, "referer");
+    deleteCookie(c, "referer", { path: "/" });
+    return c.redirect(referer ?? "/");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return c.text(`Login failed: ${message}`, 502);
@@ -92,7 +106,7 @@ auth.get("/callback", async (c) => {
 auth.post("/logout", async (c) => {
   const sessionId = getCookie(c, SESSION_COOKIE);
   if (sessionId) {
-    await c.env.SESSIONS.delete(`session:${sessionId}`);
+    await c.env.MOOD_MUSIC_SESSIONS.delete(`session:${sessionId}`);
   }
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
   return c.json({ ok: true });

@@ -1,7 +1,7 @@
+import { AuthStatus } from "@/components/auth-status";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { Toaster } from "sonner";
-import { AuthStatus } from "@/components/auth-status";
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -21,6 +21,12 @@ function RootComponent() {
       </div>
       <Toaster
         position="top-center"
+        icons={{
+          success: null,
+          error: null,
+          warning: null,
+          info: null,
+        }}
         richColors
         closeButton
         toastOptions={{

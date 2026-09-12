@@ -12,7 +12,7 @@ export async function getCurrentUserStub(
   const sessionId = getCookie(c, SESSION_COOKIE);
   if (!sessionId) return null;
 
-  const spotifyUserId = await c.env.SESSIONS.get(`session:${sessionId}`);
+  const spotifyUserId = await c.env.MOOD_MUSIC_SESSIONS.get(`session:${sessionId}`);
   if (!spotifyUserId) return null;
 
   return c.env.USER_STATE.getByName(spotifyUserId);

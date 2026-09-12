@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "mkdir -p ../web/dist",
     "dev": "wrangler dev",
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",

@@ -1,7 +1,7 @@
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
 
 export default defineConfig({
   plugins: [
@@ -14,6 +14,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: "0.0.0.0",
     proxy: {
       "/api": "http://127.0.0.1:8787",
     },

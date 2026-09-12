@@ -31,6 +31,25 @@ export interface MoodPlaylistsResponse {
   playlists: Playlist[];
 }
 
+// Defensive cleanup: if an error string is itself a raw JSON blob (e.g. an
+// upstream API error that slipped through unformatted), pull out just the
+// human-readable message instead of showing the JSON verbatim in a toast.
+function toFriendlyErrorMessage(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return raw;
+
+  try {
+    const parsed = JSON.parse(trimmed) as any;
+    if (typeof parsed?.error_description === "string") return parsed.error_description;
+    if (typeof parsed?.error?.message === "string") return parsed.error.message;
+    if (typeof parsed?.error === "string") return parsed.error;
+    if (typeof parsed?.message === "string") return parsed.message;
+  } catch {
+    // Not actually valid JSON — fall through and show it as-is.
+  }
+  return raw;
+}
+
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   let data: any;
   try {
@@ -42,7 +61,8 @@ async function parseJsonResponse<T>(res: Response): Promise<T> {
   }
 
   if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}.`);
+    const rawMessage = data?.error || `Request failed with status ${res.status}.`;
+    throw new Error(toFriendlyErrorMessage(rawMessage));
   }
 
   return data as T;

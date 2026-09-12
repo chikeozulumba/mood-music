@@ -1,3 +1,5 @@
+import { extractApiErrorMessage } from "./errors";
+
 // Raw fetch to the Claude Messages API rather than the Node SDK — keeps the
 // Worker bundle small and avoids any Workers-runtime compatibility questions.
 // We force a tool call so the response is always strict, parseable JSON (no
@@ -57,7 +59,8 @@ export async function interpretMood(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Claude API error (${res.status}): ${text}`);
+    console.error(`Claude API error (${res.status}):`, text);
+    throw new Error(`Claude API error: ${extractApiErrorMessage(text)}`);
   }
 
   const data = (await res.json()) as {

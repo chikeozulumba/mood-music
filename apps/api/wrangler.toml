@@ -16,13 +16,13 @@ tag = "v1"
 new_sqlite_classes = ["UserState"]
 
 # Create this namespace once with:
-#   wrangler kv namespace create SESSIONS
-#   wrangler kv namespace create SESSIONS --preview
+#   wrangler kv namespace create MOOD_MUSIC_SESSIONS
+#   wrangler kv namespace create MOOD_MUSIC_SESSIONS --preview
 # then paste the returned ids below.
 [[kv_namespaces]]
-binding = "SESSIONS"
-id = "REPLACE_WITH_PROD_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_PREVIEW_NAMESPACE_ID"
+binding = "MOOD_MUSIC_SESSIONS"
+id = "fef199fbdb07444e9c1ac7a9c6d1607b"
+preview_id = "1849c801d0914b28b3edefe4b48777d1"
 
 [vars]
 # Non-secret. Update to the deployed Worker URL in production.

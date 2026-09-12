@@ -1,3 +1,5 @@
+import { extractApiErrorMessage } from "./errors";
+
 // Client Credentials flow (app-only, no user login) — powers anonymous public
 // playlist search. Token is cached in module scope for the life of the
 // isolate; a cold start just re-fetches one, which is cheap and not
@@ -25,7 +27,8 @@ async function getAppAccessToken(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Spotify auth failed (${res.status}): ${text}`);
+    console.error(`Spotify auth failed (${res.status}):`, text);
+    throw new Error(`Spotify auth failed: ${extractApiErrorMessage(text)}`);
   }
 
   const data = (await res.json()) as {
@@ -69,7 +72,8 @@ async function searchPlaylistsForQuery(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Spotify search failed (${res.status}): ${text}`);
+    console.error(`Spotify search failed (${res.status}):`, text);
+    throw new Error(`Spotify search failed: ${extractApiErrorMessage(text)}`);
   }
 
   const data = (await res.json()) as any;
@@ -149,7 +153,8 @@ export async function exchangeCodeForTokens(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Spotify token exchange failed (${res.status}): ${text}`);
+    console.error(`Spotify token exchange failed (${res.status}):`, text);
+    throw new Error(`Spotify token exchange failed: ${extractApiErrorMessage(text)}`);
   }
 
   return res.json();
@@ -176,7 +181,8 @@ export async function refreshSpotifyAccessToken(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Spotify token refresh failed (${res.status}): ${text}`);
+    console.error(`Spotify token refresh failed (${res.status}):`, text);
+    throw new Error(`Spotify token refresh failed: ${extractApiErrorMessage(text)}`);
   }
 
   return res.json();
@@ -198,7 +204,8 @@ export async function fetchSpotifyProfile(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Spotify profile fetch failed (${res.status}): ${text}`);
+    console.error(`Spotify profile fetch failed (${res.status}):`, text);
+    throw new Error(`Spotify profile fetch failed: ${extractApiErrorMessage(text)}`);
   }
 
   return res.json();

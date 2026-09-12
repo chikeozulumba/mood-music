@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { useQueryState, parseAsString } from "nuqs";
-import { toast } from "sonner";
 import { MoodForm } from "@/components/mood-form";
 import { PlaylistGrid } from "@/components/playlist-grid";
 import { fetchMoodPlaylists, type Playlist } from "@/lib/api-client";
+import { createFileRoute } from "@tanstack/react-router";
+import { parseAsString, useQueryState } from "nuqs";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -42,7 +42,9 @@ function Home() {
           : err instanceof Error
             ? err.message
             : "Something went wrong. Please try again.";
-      toast.error(message);
+      toast.error("Error", {
+        description: message,
+      });
     } finally {
       setLoading(false);
     }
