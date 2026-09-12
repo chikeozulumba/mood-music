@@ -1,0 +1,33 @@
+name = "mood-music-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-12"
+
+[assets]
+directory = "../web/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[durable_objects.bindings]]
+name = "USER_STATE"
+class_name = "UserState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserState"]
+
+# Create this namespace once with:
+#   wrangler kv namespace create SESSIONS
+#   wrangler kv namespace create SESSIONS --preview
+# then paste the returned ids below.
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_PROD_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_NAMESPACE_ID"
+
+[vars]
+# Non-secret. Update to the deployed Worker URL in production.
+SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8787/api/auth/callback"
+
+# Secrets — never stored in this file.
+# Local dev: create apps/api/.dev.vars (gitignored) from .dev.vars.example.
+# Production: `wrangler secret put ANTHROPIC_API_KEY` / SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET

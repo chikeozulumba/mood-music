@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "types": ["@cloudflare/workers-types"],
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": ["src", "worker-configuration.d.ts"],
+  "exclude": ["node_modules"]
+}

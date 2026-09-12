@@ -1,76 +1,125 @@
 # Mood Music
 
-Type a mood or a description of your day, and get back real Spotify playlists that match.
+Type a mood or a description of your day, and get back real Spotify playlists
+that match. Log in with Spotify to keep a history of your past searches.
 
-## How it works
+## Architecture
+
+A pnpm monorepo with two apps deployed as a single Cloudflare Worker:
 
 ```
-User types mood
-      │
-      ▼
-POST /api/mood-playlists
-      │
-      ├─► Claude (Anthropic SDK)
-      │     Forced tool-call returns strict JSON:
-      │       { vibeSummary, searchQueries: [3-5 short phrases] }
-      │
-      ▼
-Spotify Web API — Client Credentials flow
-      │   (no user login needed; this is read-only public search)
-      │   one /v1/search?type=playlist call per query, results merged + deduped
-      ▼
-JSON response → rendered as playlist cards in the UI
+apps/
+├── web/   Vite + React + TanStack Router + nuqs (the SPA)
+└── api/   Hono running on Cloudflare Workers (the API)
 ```
 
-Two API calls happen server-side, in this order, inside a single route handler
-(`app/api/mood-playlists/route.ts`):
+```
+Browser
+  │
+  ├─► GET /                      → apps/web's built SPA (Cloudflare static assets)
+  │
+  └─► /api/*                     → apps/api's Hono app
+        ├─► POST /api/mood-playlists
+        │     ├─► Claude (raw fetch, forced tool-call JSON)
+        │     └─► Spotify Search API (Client Credentials — no login needed)
+        │
+        ├─► GET  /api/auth/login    → redirect to Spotify's OAuth consent screen
+        ├─► GET  /api/auth/callback → exchanges code for tokens, creates a session
+        ├─► POST /api/auth/logout
+        ├─► GET  /api/auth/me
+        └─► GET  /api/history       → this user's past mood searches
+```
 
-1. **`lib/anthropic.ts`** — sends the raw mood text to Claude with a single
-   tool defined (`submit_mood_queries`) and `tool_choice` forced to that tool,
-   so the response is always parseable JSON — no prompt-engineering a "please
-   respond in JSON" instruction and hoping it's followed.
-2. **`lib/spotify.ts`** — gets an app-only access token via Spotify's
-   [Client Credentials flow](https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow)
-   (cached in memory until it expires), then calls the Search API once per
-   query term and merges/dedupes the results.
+In production, `apps/api`'s Worker serves `apps/web`'s built static files
+*and* runs the API from the same Worker/domain (Cloudflare's `[assets]`
+binding with `run_worker_first = ["/api/*"]`), so everything is same-origin —
+no CORS, and cookie-based sessions just work. In local dev, Vite proxies
+`/api/*` to `wrangler dev`, keeping that same same-origin property.
 
-The Spotify secret and the Anthropic key **only ever live on the server**
-(Next.js route handler) — the browser never sees them.
+### Data storage
+
+- **Workers KV** (`SESSIONS` namespace): maps an opaque session-id cookie to
+  a Spotify user id. Nothing else lives here.
+- **Durable Objects** (one `UserState` instance per Spotify user, addressed by
+  their Spotify user id): stores that user's Spotify OAuth tokens (with
+  auto-refresh) and their full mood-search history (mood text, Claude's vibe
+  summary, and the playlists returned), using the DO's own transactional
+  storage.
+
+Mood search works for everyone, logged in or not — logging in only adds
+history persistence and the `/history` page.
 
 ## Setup
 
-1. **Get a Spotify app.** Go to the
-   [Spotify Developer Dashboard](https://developer.spotify.com/dashboard),
-   create an app, and copy the Client ID and Client Secret. No redirect URI
-   is needed for this flow — Client Credentials doesn't do user login.
-2. **Get an Anthropic API key** from the
-   [Claude Console](https://console.anthropic.com).
-3. Copy the env template and fill it in:
-   ```bash
-   cp .env.local.example .env.local
-   ```
-4. Install and run:
-   ```bash
-   npm install
-   npm run dev
-   ```
-5. Open http://localhost:3000, type a mood, hit "Find playlists."
+### 1. Spotify app
 
-## Notes / things you'll likely want to change
+You already have a Spotify app from the original version of this project
+(Client ID + Secret in the repo root's `.env.local` — that file is unused by
+the new API but was left in place). In the
+[Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add
+these **Redirect URIs** to that app's settings:
 
-- **Model name**: `lib/anthropic.ts` uses `claude-sonnet-5`. If you're on an
-  older API key/org without access to it, swap in whichever model string
-  your account has (check the [Models docs](https://docs.claude.com/en/docs/about-claude/models/overview)).
-- **Token cache**: the in-memory Spotify token cache assumes a single server
-  instance. If you deploy to a serverless/multi-instance platform, move it to
-  Redis or similar, or just accept the extra token requests (they're cheap
-  and not rate-limited tightly).
-- **Rate limits**: each mood query triggers 1 Claude call + up to 5 Spotify
-  search calls. Fine for personal use; add caching/debouncing before putting
-  this in front of real traffic.
-- **This returns existing playlists**, not a generated one. If you'd rather
-  have Claude pick individual tracks and have the app create a brand-new
-  playlist on the user's account, that requires the Authorization Code flow
-  (real user login + `playlist-modify-public` scope) instead of Client
-  Credentials — a materially different auth setup, happy to build that
-  version if you want it instead.
+- `http://127.0.0.1:8787/api/auth/callback` (local dev)
+- `https://<your-worker>.workers.dev/api/auth/callback` (production, once deployed)
+
+### 2. Cloudflare
+
+```bash
+pnpm dlx wrangler login
+cd apps/api
+wrangler kv namespace create SESSIONS
+wrangler kv namespace create SESSIONS --preview
+```
+
+Paste the two returned namespace ids into `apps/api/wrangler.toml`'s
+`[[kv_namespaces]]` block (`id` / `preview_id`).
+
+### 3. Local secrets
+
+```bash
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+```
+
+Fill in `apps/api/.dev.vars` with the same three values already in the repo
+root's `.env.local` (`ANTHROPIC_API_KEY`, `SPOTIFY_CLIENT_ID`,
+`SPOTIFY_CLIENT_SECRET`). `wrangler dev` reads `.dev.vars` automatically; it's
+gitignored.
+
+### 4. Install and run
+
+```bash
+pnpm install
+pnpm dev   # runs `vite` (http://localhost:5173) and `wrangler dev` (http://127.0.0.1:8787) together
+```
+
+Open http://localhost:5173.
+
+## Deploying
+
+```bash
+pnpm deploy   # builds apps/web, then `wrangler deploy` from apps/api
+              # (uploads the built SPA + the Worker together)
+```
+
+Before your first production deploy, set the same three secrets Cloudflare-side:
+
+```bash
+cd apps/api
+wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put SPOTIFY_CLIENT_ID
+wrangler secret put SPOTIFY_CLIENT_SECRET
+```
+
+And update `SPOTIFY_REDIRECT_URI` in `apps/api/wrangler.toml`'s `[vars]` to
+your production Worker URL once you know it.
+
+## Notes
+
+- **Anthropic model**: `apps/api/src/lib/anthropic.ts` uses `claude-sonnet-5`.
+  Swap it if your account doesn't have access to that model.
+- **Anonymous Spotify token cache**: the app-only (Client Credentials) search
+  token is cached in module scope per Worker isolate — cheap to re-fetch on a
+  cold start, no shared cache needed for this traffic pattern.
+- **Scope**: Spotify login only requests `user-read-email user-read-private`
+  (identity only) — this app never reads or modifies a user's library or
+  playlists, only searches Spotify's public catalog.

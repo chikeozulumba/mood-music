@@ -2,3 +2,11 @@ node_modules
 .next
 .env.local
 .env
+
+# Vite build output / generated route tree
+apps/web/dist
+apps/web/src/routeTree.gen.ts
+
+# Cloudflare Workers local dev
+apps/api/.dev.vars
+apps/api/.wrangler

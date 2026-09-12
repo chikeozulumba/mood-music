@@ -1,0 +1,19 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5",
+    "wrangler": "^4.0.0"
+  }
+}
