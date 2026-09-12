@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
+import { AnthropicKeyModal } from "@/components/anthropic-key-modal";
 
 export function AuthStatus() {
   const { status, profile, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [keyModalOpen, setKeyModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,11 +76,21 @@ export function AuthStatus() {
         {menuOpen && (
           <div
             role="menu"
-            className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-xl border border-ink-900/10 bg-white shadow-card"
+            className="absolute right-0 z-10 mt-2 w-52 overflow-hidden rounded-xl border border-ink-900/10 bg-white shadow-card"
           >
             <div className="truncate border-b border-ink-900/5 px-3 py-2 text-ink-700">
               {profile.displayName ?? "You"}
             </div>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setKeyModalOpen(true);
+              }}
+              className="block w-full px-3 py-2 text-left text-ink-500 hover:bg-cream-100 hover:text-ink-900"
+            >
+              Anthropic API key
+            </button>
             <button
               role="menuitem"
               onClick={handleLogout}
@@ -89,6 +101,11 @@ export function AuthStatus() {
           </div>
         )}
       </div>
+
+      <AnthropicKeyModal
+        open={keyModalOpen}
+        onClose={() => setKeyModalOpen(false)}
+      />
     </div>
   );
 }

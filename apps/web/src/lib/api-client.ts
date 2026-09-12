@@ -105,3 +105,32 @@ export async function fetchHistory(): Promise<{ entries: HistoryEntry[] }> {
   const res = await fetch("/api/history", { credentials: "same-origin" });
   return parseJsonResponse(res);
 }
+
+export async function fetchAnthropicKeyStatus(): Promise<{
+  hasOwnKey: boolean;
+}> {
+  const res = await fetch("/api/settings/anthropic-key", {
+    credentials: "same-origin",
+  });
+  return parseJsonResponse(res);
+}
+
+export async function saveAnthropicKey(
+  apiKey: string
+): Promise<{ hasOwnKey: boolean }> {
+  const res = await fetch("/api/settings/anthropic-key", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ apiKey }),
+  });
+  return parseJsonResponse(res);
+}
+
+export async function clearAnthropicKey(): Promise<{ hasOwnKey: boolean }> {
+  const res = await fetch("/api/settings/anthropic-key", {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+  return parseJsonResponse(res);
+}

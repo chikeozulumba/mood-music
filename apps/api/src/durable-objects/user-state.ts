@@ -107,4 +107,50 @@ export class UserState extends DurableObject<Env> {
     });
     return Array.from(entries.values());
   }
+
+  // --- Weekly quota on the shared Anthropic key ---
+  // Only calls that actually hit Claude using the app's own shared key
+  // count against this — cache hits cost nothing, and a user's own key
+  // (see below) is exempt entirely. Checking and recording happen in one
+  // DO method so it's atomic: a Durable Object processes one request to
+  // completion before starting the next, so two concurrent searches can't
+  // both slip through past the limit.
+  async tryConsumeSharedKeyQuota(
+    limit: number,
+    windowMs: number
+  ): Promise<{ allowed: boolean; count: number }> {
+    const cutoff = Date.now() - windowMs;
+    const all = await this.ctx.storage.list<number>({ prefix: "quota:shared:" });
+
+    let count = 0;
+    const stale: string[] = [];
+    for (const [key, ts] of all) {
+      if (ts >= cutoff) count++;
+      else stale.push(key);
+    }
+    if (stale.length > 0) {
+      await this.ctx.storage.delete(stale);
+    }
+
+    if (count >= limit) {
+      return { allowed: false, count };
+    }
+
+    const now = Date.now();
+    await this.ctx.storage.put(`quota:shared:${String(now).padStart(15, "0")}`, now);
+    return { allowed: true, count: count + 1 };
+  }
+
+  // --- Bring-your-own Anthropic key (bypasses the shared-key quota) ---
+  async saveOwnAnthropicKey(apiKey: string): Promise<void> {
+    await this.ctx.storage.put("own-anthropic-key", apiKey);
+  }
+
+  async getOwnAnthropicKey(): Promise<string | undefined> {
+    return this.ctx.storage.get<string>("own-anthropic-key");
+  }
+
+  async clearOwnAnthropicKey(): Promise<void> {
+    await this.ctx.storage.delete("own-anthropic-key");
+  }
 }

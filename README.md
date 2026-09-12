@@ -125,6 +125,13 @@ your production Worker URL once you know it.
 
 ## Notes
 
+- **Weekly search limit**: logged-in users get 10 fresh Claude calls per
+  rolling 7 days on the app's shared `ANTHROPIC_API_KEY` (tracked per-user
+  in their `UserState` Durable Object). Results served from the mood-search
+  cache never count against it, since they don't touch Claude at all. A
+  user can add their own Anthropic key from the profile menu (→ "Anthropic
+  API key") to bypass the limit entirely — their key is stored on their
+  account and used only for their own searches instead of the shared one.
 - **Anthropic model**: `apps/api/src/lib/anthropic.ts` uses `claude-sonnet-5`.
   Swap it if your account doesn't have access to that model.
 - **Anonymous Spotify token cache**: the app-only (Client Credentials) search
