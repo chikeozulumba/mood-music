@@ -1,6 +1,8 @@
+import { LoginModal } from "@/components/login-modal";
 import { MoodForm } from "@/components/mood-form";
 import { PlaylistGrid } from "@/components/playlist-grid";
 import { fetchMoodPlaylists, type Playlist } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { createFileRoute } from "@tanstack/react-router";
 import { parseAsString, useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
@@ -11,22 +13,22 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { status } = useAuth();
   const [mood, setMood] = useQueryState("q", parseAsString.withDefault(""));
   const [loading, setLoading] = useState(false);
   const [vibeSummary, setVibeSummary] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [resultsEntered, setResultsEntered] = useState(false);
   const autoSubmitted = useRef(false);
 
-  async function handleSubmit() {
-    const trimmed = mood.trim();
-    if (!trimmed || loading) return;
-
+  async function runSearch(trimmedMood: string) {
     setLoading(true);
     setPlaylists([]);
     setVibeSummary(null);
 
     try {
-      const data = await fetchMoodPlaylists(trimmed);
+      const data = await fetchMoodPlaylists(trimmedMood);
       setVibeSummary(data.vibeSummary ?? null);
       setPlaylists(data.playlists);
 
@@ -50,50 +52,126 @@ function Home() {
     }
   }
 
-  // If the page loads with a mood already in the URL (shared/back-navigated
-  // link), automatically run that search once.
+  function handleSubmit() {
+    const trimmed = mood.trim();
+    if (!trimmed || loading) return;
+
+    if (status !== "authenticated") {
+      setShowLoginModal(true);
+      return;
+    }
+
+    runSearch(trimmed);
+  }
+
+  // If the page loads with a mood already in the URL — e.g. returning from a
+  // successful Spotify login, or a shared/back-navigated link — pick up
+  // where the user left off: once we know they're authenticated, run that
+  // search automatically. If they're not authenticated, leave the textbox
+  // pre-filled and wait for them to hit search (which shows the login modal).
   useEffect(() => {
     if (autoSubmitted.current) return;
+    if (status === "loading") return;
+
     autoSubmitted.current = true;
-    if (mood.trim()) {
-      handleSubmit();
+    const trimmed = mood.trim();
+    if (trimmed && status === "authenticated") {
+      runSearch(trimmed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status]);
 
-  const hasResults = playlists.length > 0 || loading || vibeSummary;
+  const hasResults = playlists.length > 0 || loading || Boolean(vibeSummary);
+
+  // Mount the results pane one frame "before" its entrance state so the
+  // opacity/translate change is picked up as a CSS transition rather than
+  // appearing instantly.
+  useEffect(() => {
+    if (!hasResults) {
+      setResultsEntered(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setResultsEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, [hasResults]);
 
   return (
-    <main className="flex flex-col items-center px-4 sm:px-6">
+    <main className="w-full px-4 sm:px-6">
       <div
-        className={`w-full max-w-2xl flex flex-col ${
-          hasResults ? "pt-8" : "min-h-[70vh] justify-center"
+        className={`mx-auto flex w-full flex-col gap-8 transition-all duration-500 ease-out lg:flex-row lg:items-start ${
+          hasResults ? "max-w-5xl pt-10" : "max-w-2xl pt-[22vh]"
         }`}
       >
-        <div className="mb-6 text-center">
-          <h1 className="font-serif text-3xl sm:text-4xl text-ink-900 mb-2">
-            Mood Music
-          </h1>
-          <p className="text-ink-500 text-sm sm:text-base">
-            Describe how you're feeling — Spotify finds the playlists.
-          </p>
+        <div
+          className={`flex w-full flex-col transition-all duration-500 ease-out ${
+            hasResults ? "lg:w-[380px] lg:shrink-0" : "items-center text-center"
+          }`}
+        >
+          <div className={`mb-6 ${hasResults ? "" : "text-center"}`}>
+            <h1 className="font-serif text-3xl sm:text-4xl text-ink-900 mb-2">
+              Mood Music
+            </h1>
+            <p className="text-ink-500 text-sm sm:text-base">
+              Describe how you're feeling — Spotify finds the playlists.
+            </p>
+          </div>
+
+          <MoodForm
+            mood={mood}
+            onMoodChange={setMood}
+            onSubmit={handleSubmit}
+            loading={loading}
+          />
         </div>
 
-        <MoodForm
-          mood={mood}
-          onMoodChange={setMood}
-          onSubmit={handleSubmit}
-          loading={loading}
-        />
+        {hasResults && (
+          <div
+            className={`min-w-0 flex-1 pb-16 transition-all duration-500 ease-out ${
+              resultsEntered
+                ? "translate-x-0 opacity-100"
+                : "translate-x-6 opacity-0"
+            }`}
+          >
+            {vibeSummary && (
+              <p className="mb-4 text-ink-500 italic text-sm">
+                "{vibeSummary}"
+              </p>
+            )}
 
-        {vibeSummary && (
-          <p className="mt-6 text-center text-ink-500 italic text-sm">
-            "{vibeSummary}"
-          </p>
+            {loading && playlists.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-ink-500">
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+                Finding playlists…
+              </div>
+            ) : (
+              <PlaylistGrid playlists={playlists} />
+            )}
+          </div>
         )}
-
-        <PlaylistGrid playlists={playlists} />
       </div>
+
+      <LoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </main>
   );
 }

@@ -1,30 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { fetchMe, logout, type UserProfile } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 export function AuthStatus() {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { status, profile, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchMe()
-      .then((data) => {
-        if (cancelled) return;
-        setProfile(data.authenticated ? data.profile : null);
-      })
-      .catch(() => {
-        if (!cancelled) setProfile(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -48,17 +29,14 @@ export function AuthStatus() {
 
   async function handleLogout() {
     setMenuOpen(false);
-    setLoading(true);
     await logout();
-    setProfile(null);
-    setLoading(false);
   }
 
-  if (loading) {
+  if (status === "loading") {
     return <div className="h-8 w-24" />;
   }
 
-  if (!profile) {
+  if (status === "unauthenticated" || !profile) {
     return (
       <a
         href="/api/auth/login"

@@ -4,14 +4,14 @@ export function PlaylistGrid({ playlists }: { playlists: Playlist[] }) {
   if (playlists.length === 0) return null;
 
   return (
-    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 pb-16">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {playlists.map((p) => (
         <a
           key={p.id}
           href={p.url}
           target="_blank"
           rel="noreferrer"
-          className="flex gap-3 rounded-2xl bg-white border border-ink-900/5 p-3 shadow-card transition-shadow hover:shadow-md"
+          className="flex gap-3 rounded-2xl border border-ink-900/10 bg-white p-3 transition-colors hover:border-clay-600/40 hover:bg-cream-100"
         >
           {p.imageUrl ? (
             <img
