@@ -1,6 +1,7 @@
 import { LoginModal } from "@/components/login-modal";
 import { MoodForm } from "@/components/mood-form";
 import { PlaylistGrid } from "@/components/playlist-grid";
+import { PlaylistModal } from "@/components/playlist-modal";
 import { fetchMoodPlaylists, type Playlist } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { createFileRoute } from "@tanstack/react-router";
@@ -19,6 +20,9 @@ function Home() {
   const [vibeSummary, setVibeSummary] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(
+    null
+  );
   const [resultsEntered, setResultsEntered] = useState(false);
   const autoSubmitted = useRef(false);
 
@@ -104,7 +108,9 @@ function Home() {
       >
         <div
           className={`flex w-full flex-col transition-all duration-500 ease-out ${
-            hasResults ? "lg:w-[380px] lg:shrink-0" : "items-center text-center"
+            hasResults
+              ? "lg:sticky lg:top-8 lg:w-[380px] lg:shrink-0 lg:self-start"
+              : "items-center text-center"
           }`}
         >
           <div className={`mb-6 ${hasResults ? "" : "text-center"}`}>
@@ -162,7 +168,10 @@ function Home() {
                 Finding playlists…
               </div>
             ) : (
-              <PlaylistGrid playlists={playlists} />
+              <PlaylistGrid
+                playlists={playlists}
+                onSelect={setSelectedPlaylist}
+              />
             )}
           </div>
         )}
@@ -171,6 +180,10 @@ function Home() {
       <LoginModal
         open={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+      />
+      <PlaylistModal
+        playlist={selectedPlaylist}
+        onClose={() => setSelectedPlaylist(null)}
       />
     </main>
   );

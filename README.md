@@ -38,13 +38,23 @@ no CORS, and cookie-based sessions just work. In local dev, Vite proxies
 
 ### Data storage
 
-- **Workers KV** (`MOOD_MUSIC_SESSIONS` namespace): maps an opaque session-id cookie to
-  a Spotify user id. Nothing else lives here.
+- **Workers KV** (`MOOD_MUSIC_SESSIONS` namespace) serves two purposes,
+  distinguished by key prefix:
+  - `session:*` maps an opaque session-id cookie to a Spotify user id.
+  - `cache:mood:*` caches mood-search results (Claude's interpretation +
+    the Spotify playlists found), keyed by a SHA-256 hash of the
+    normalized mood text, for 24 hours — so the same mood never re-hits
+    Claude or Spotify.
 - **Durable Objects** (one `UserState` instance per Spotify user, addressed by
   their Spotify user id): stores that user's Spotify OAuth tokens (with
   auto-refresh) and their full mood-search history (mood text, Claude's vibe
   summary, and the playlists returned), using the DO's own transactional
   storage.
+- **Spotify search pagination**: each Claude-derived search phrase is paged
+  through Spotify's search endpoint (50 results per page, up to 4 pages) and
+  merged round-robin by rank across phrases — so the most relevant/popular
+  hit from every phrase surfaces before any phrase's second-tier hits — until
+  at least 50 unique playlists are collected.
 
 Mood search works for everyone, logged in or not — logging in only adds
 history persistence and the `/history` page.
