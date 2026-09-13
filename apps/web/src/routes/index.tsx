@@ -1,4 +1,3 @@
-import { LoginModal } from "@/components/login-modal";
 import { MoodForm } from "@/components/mood-form";
 import { PlaylistGrid } from "@/components/playlist-grid";
 import { PlaylistModal } from "@/components/playlist-modal";
@@ -19,7 +18,6 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [vibeSummary, setVibeSummary] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(
     null
   );
@@ -60,26 +58,22 @@ function Home() {
     const trimmed = mood.trim();
     if (!trimmed || loading) return;
 
-    if (status !== "authenticated") {
-      setShowLoginModal(true);
-      return;
-    }
-
     runSearch(trimmed);
   }
 
   // If the page loads with a mood already in the URL — e.g. returning from a
   // successful Spotify login, or a shared/back-navigated link — pick up
-  // where the user left off: once we know they're authenticated, run that
-  // search automatically. If they're not authenticated, leave the textbox
-  // pre-filled and wait for them to hit search (which shows the login modal).
+  // where the user left off and run that search automatically, once we know
+  // whether the user is authenticated (not while auth status is still
+  // loading, so we don't fire a search that then can't be attributed to a
+  // signed-in session).
   useEffect(() => {
     if (autoSubmitted.current) return;
     if (status === "loading") return;
 
     autoSubmitted.current = true;
     const trimmed = mood.trim();
-    if (trimmed && status === "authenticated") {
+    if (trimmed) {
       runSearch(trimmed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,10 +171,6 @@ function Home() {
         )}
       </div>
 
-      <LoginModal
-        open={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
       <PlaylistModal
         playlist={selectedPlaylist}
         onClose={() => setSelectedPlaylist(null)}
