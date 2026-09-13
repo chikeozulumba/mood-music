@@ -8,6 +8,7 @@ import { hashMoodText, MOOD_CACHE_TTL_SECONDS } from "../lib/cache";
 const moodPlaylists = new Hono<{ Bindings: Env }>();
 
 const WEEKLY_SHARED_KEY_LIMIT = 10;
+const ANONYMOUS_WEEKLY_LIMIT = 10;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface MoodPlaylistsResult {
@@ -56,6 +57,30 @@ moodPlaylists.post("/", async (c) => {
               error: `You've used all ${WEEKLY_SHARED_KEY_LIMIT} of your free searches this week. Add your own Anthropic API key in your profile menu to keep searching, or wait for your weekly limit to reset.`,
               code: "WEEKLY_LIMIT_REACHED",
               limit: WEEKLY_SHARED_KEY_LIMIT,
+              count,
+            },
+            429
+          );
+        }
+      }
+
+      // Not signed in: rate-limit by IP so anonymous traffic can't hammer
+      // the shared Anthropic key without any quota at all. Reuses the same
+      // per-instance quota mechanism as signed-in users, just keyed by a
+      // "anon:<ip>" DO name instead of a Spotify user id.
+      if (!stub) {
+        const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+        const anonStub = c.env.USER_STATE.getByName(`anon:${ip}`);
+        const { allowed, count } = await anonStub.tryConsumeSharedKeyQuota(
+          ANONYMOUS_WEEKLY_LIMIT,
+          WEEK_MS
+        );
+        if (!allowed) {
+          return c.json(
+            {
+              error: `You've used all ${ANONYMOUS_WEEKLY_LIMIT} free searches this week. Sign in with Spotify to keep searching.`,
+              code: "WEEKLY_LIMIT_REACHED",
+              limit: ANONYMOUS_WEEKLY_LIMIT,
               count,
             },
             429

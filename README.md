@@ -148,6 +148,10 @@ your production Worker URL once you know it.
   user can add their own Anthropic key from the profile menu (→ "Anthropic
   API key") to bypass the limit entirely — their key is stored on their
   account and used only for their own searches instead of the shared one.
+  Anonymous (not logged in) visitors get the same 10-per-rolling-week limit,
+  tracked per IP address (`CF-Connecting-IP`) in its own `UserState`
+  Durable Object instance — signing in doesn't share or reset this quota,
+  it just switches you to the per-user quota above.
 - **Anthropic model**: `apps/api/src/lib/anthropic.ts` uses `claude-sonnet-5`.
   Swap it if your account doesn't have access to that model.
 - **Anonymous Spotify token cache**: the app-only (Client Credentials) search
